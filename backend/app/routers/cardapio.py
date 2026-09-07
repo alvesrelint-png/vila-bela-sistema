@@ -178,6 +178,21 @@ def adicionar_ingrediente_na_ficha(
     return linha
 
 
+@router.get(
+    "/itens/{item_id}/disponibilidade",
+    response_model=schemas.DisponibilidadeItem,
+    dependencies=[Depends(exigir_admin)],
+)
+def disponibilidade_do_item(item_id: int, db: Session = Depends(get_db)):
+    """Diagnóstico usado pela tela de ficha técnica: além do booleano, diz
+    qual ingrediente falta e por quê (saldo válido vs. necessário)."""
+    item = db.get(models.ItemCardapio, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+
+    return disponibilidade.diagnosticar_disponibilidade(db, item_id)
+
+
 # ---------------------------------------------------------------------------
 # Cardápio público
 # ---------------------------------------------------------------------------

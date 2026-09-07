@@ -44,6 +44,23 @@ class IngredienteComSaldo(IngredienteRead):
     saldo_disponivel: float
 
 
+class IngredienteFaltando(BaseModel):
+    """Um ingrediente da ficha técnica cujo saldo válido não cobre a
+    quantidade necessária — usado para explicar por que um item está
+    indisponível (ver docs/planejamento/08 - Wireframes.md > Ficha técnica)."""
+
+    ingrediente_id: int
+    nome: str
+    saldo_disponivel: float
+    quantidade_necessaria: float
+
+
+class DisponibilidadeItem(BaseModel):
+    item_id: int
+    disponivel: bool
+    ingredientes_faltando: list[IngredienteFaltando]
+
+
 # ---------------------------------------------------------------------------
 # Lote de estoque / movimentação
 # ---------------------------------------------------------------------------

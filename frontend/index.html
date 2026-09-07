@@ -5,29 +5,237 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vila Bela — Cardápio</title>
 <link rel="stylesheet" href="tema.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-family: var(--font-body);
+  }
+
+  header {
+    background: var(--cor-destaque);
+    color: var(--cor-destaque-texto);
+    padding: 16px;
+    text-align: center;
+  }
+  header h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    letter-spacing: 0.05em;
+  }
+  header .mesa {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    opacity: 0.85;
+    /* Sprint 1: mesa fixa/oculta. Sprint 2: ler da URL do QR code da mesa. */
+  }
+
+  nav.categorias {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 12px;
+    background: var(--cor-fundo-elevado);
+    border-bottom: 1px solid var(--cor-borda);
+    position: sticky;
+    top: 0;
+  }
+  nav.categorias button {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-fundo-elevado);
+    color: var(--cor-texto);
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  nav.categorias button.ativa {
+    background: var(--cor-destaque);
+    border-color: var(--cor-destaque);
+    color: var(--cor-destaque-texto);
+  }
+
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  .item {
+    background: var(--cor-fundo-elevado);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .item.indisponivel {
+    opacity: 0.65;
+  }
+  .item .nome {
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .item .descricao {
+    color: var(--cor-texto-suave);
+    font-size: 0.9rem;
+    margin-top: 2px;
+  }
+  .item .preco {
+    margin-top: 6px;
+    font-weight: 600;
+  }
+  .selo {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .selo.disponivel {
+    background: var(--cor-disponivel-fundo);
+    color: var(--cor-disponivel);
+  }
+  .selo.indisponivel {
+    background: var(--cor-indisponivel-fundo);
+    color: var(--cor-indisponivel);
+  }
+
+  .aviso, .vazio {
+    text-align: center;
+    color: var(--cor-texto-suave);
+    padding: 32px 16px;
+  }
+  .aviso.erro {
+    color: var(--cor-alerta);
+  }
+</style>
 </head>
 <body>
 
-<!--
-  TODO (Sprint 1): cardápio público, consumido a partir de GET /cardapio.
-  Estrutura de referência: ../docs/planejamento/08 - Wireframes.md, seção
-  "1. Cardápio público (mobile)".
+<header>
+  <h1>VILA BELA</h1>
+  <div class="mesa" id="mesa">Cardápio</div>
+</header>
 
-  Elementos mínimos:
-  - Nome do estabelecimento (fixo, sem precisar de login)
-  - Identificação da mesa (Sprint 1 pode ficar fixa/oculta; Sprint 2 lê da URL
-    ou do QR code)
-  - Abas de categoria (rolagem horizontal, não menu lateral — celular é a tela
-    principal aqui)
-  - Lista de itens por categoria, cada um mostrando nome, preço e um rótulo
-    bem visível de DISPONÍVEL / INDISPONÍVEL (vem do campo calculado
-    `disponivel` da API, não decidir no frontend)
-  - Item indisponível não deve ter botão de adicionar (Sprint 2 terá carrinho;
-    por enquanto é só leitura)
+<nav class="categorias" id="categorias"></nav>
 
-  Mobile-first: escrever o CSS base para tela pequena e usar
-  @media (min-width: ...) para melhorar em tablet/desktop, nunca o contrário.
--->
+<main id="conteudo">
+  <p class="aviso">Carregando cardápio…</p>
+</main>
+
+<script>
+  // Ajuste este valor se o backend não estiver rodando em localhost:8000.
+  const API_BASE = "http://localhost:8000";
+
+  let categorias = [];
+  let itensPorCategoria = new Map();
+  let categoriaAtivaId = null;
+
+  async function carregarCardapio() {
+    try {
+      const [categoriasResp, itensResp] = await Promise.all([
+        fetch(`${API_BASE}/categorias`),
+        fetch(`${API_BASE}/cardapio`),
+      ]);
+
+      if (!categoriasResp.ok || !itensResp.ok) {
+        throw new Error("Falha ao consultar a API");
+      }
+
+      categorias = await categoriasResp.json();
+      const itens = await itensResp.json();
+
+      itensPorCategoria = new Map();
+      for (const item of itens) {
+        const lista = itensPorCategoria.get(item.categoria_id) || [];
+        lista.push(item);
+        itensPorCategoria.set(item.categoria_id, lista);
+      }
+
+      // Mostra só categorias que têm pelo menos um item ativo no cardápio.
+      categorias = categorias
+        .filter((c) => itensPorCategoria.has(c.id))
+        .sort((a, b) => a.ordem - b.ordem);
+
+      if (categorias.length === 0) {
+        document.getElementById("conteudo").innerHTML =
+          '<p class="vazio">O cardápio ainda não tem itens cadastrados.</p>';
+        return;
+      }
+
+      categoriaAtivaId = categorias[0].id;
+      renderizarAbas();
+      renderizarItens();
+    } catch (erro) {
+      document.getElementById("conteudo").innerHTML =
+        `<p class="aviso erro">Não foi possível carregar o cardápio agora. Verifique se o backend está rodando em ${API_BASE}.</p>`;
+    }
+  }
+
+  function renderizarAbas() {
+    const nav = document.getElementById("categorias");
+    nav.innerHTML = "";
+    for (const categoria of categorias) {
+      const botao = document.createElement("button");
+      botao.textContent = categoria.nome;
+      botao.className = categoria.id === categoriaAtivaId ? "ativa" : "";
+      botao.addEventListener("click", () => {
+        categoriaAtivaId = categoria.id;
+        renderizarAbas();
+        renderizarItens();
+      });
+      nav.appendChild(botao);
+    }
+  }
+
+  function renderizarItens() {
+    const conteudo = document.getElementById("conteudo");
+    const itens = itensPorCategoria.get(categoriaAtivaId) || [];
+
+    if (itens.length === 0) {
+      conteudo.innerHTML = '<p class="vazio">Nenhum item nesta categoria.</p>';
+      return;
+    }
+
+    conteudo.innerHTML = "";
+    for (const item of itens) {
+      const card = document.createElement("div");
+      card.className = "item" + (item.disponivel ? "" : " indisponivel");
+
+      const preco = Number(item.preco).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+
+      card.innerHTML = `
+        <div class="nome">${escapeHtml(item.nome)}</div>
+        ${item.descricao ? `<div class="descricao">${escapeHtml(item.descricao)}</div>` : ""}
+        <div class="preco">${preco}</div>
+        <span class="selo ${item.disponivel ? "disponivel" : "indisponivel"}">
+          ${item.disponivel ? "DISPONÍVEL" : "INDISPONÍVEL — sem estoque no momento"}
+        </span>
+      `;
+      // Item indisponível não recebe botão de adicionar de propósito — o
+      // carrinho (Sprint 2) só poderá agir sobre itens disponíveis.
+      conteudo.appendChild(card);
+    }
+  }
+
+  function escapeHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
+  carregarCardapio();
+</script>
 
 </body>
 </html>

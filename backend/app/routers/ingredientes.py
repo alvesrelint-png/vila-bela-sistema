@@ -33,12 +33,23 @@ def criar_ingrediente(dados: schemas.IngredienteCreate, db: Session = Depends(ge
     return ingrediente
 
 
-@router.get("", response_model=list[schemas.IngredienteRead])
+@router.get("", response_model=list[schemas.IngredienteComSaldo])
 def listar_ingredientes(incluir_inativos: bool = False, db: Session = Depends(get_db)):
+    """Já traz o saldo válido de cada ingrediente — a listagem do painel de
+    estoque (ver docs/planejamento/08 - Wireframes.md) mostra essa coluna
+    direto na tabela, sem precisar de uma chamada por ingrediente."""
     query = db.query(models.Ingrediente)
     if not incluir_inativos:
         query = query.filter(models.Ingrediente.ativo.is_(True))
-    return query.order_by(models.Ingrediente.nome).all()
+    ingredientes = query.order_by(models.Ingrediente.nome).all()
+
+    return [
+        schemas.IngredienteComSaldo(
+            **schemas.IngredienteRead.model_validate(ingrediente).model_dump(),
+            saldo_disponivel=disponibilidade.saldo_disponivel(db, ingrediente.id),
+        )
+        for ingrediente in ingredientes
+    ]
 
 
 @router.get("/{ingrediente_id}", response_model=schemas.IngredienteComSaldo)

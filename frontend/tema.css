@@ -1,13 +1,31 @@
 /* Tema visual — só variáveis de cor e fonte, nada de layout aqui.
-   TODO: definir a paleta e tipografia da Vila Bela (nenhuma decisão de marca
-   foi tomada ainda no vault — perguntar ao cliente/representante). Manter a
-   convenção de outros projetos da casa: este arquivo só declara custom
-   properties (--cor-fundo, --cor-destaque, --font-display, --font-body...),
-   e cada página consome essas variáveis no próprio <style>. */
+   Paleta PLACEHOLDER: nenhuma decisão de marca foi tomada pelo cliente ainda
+   (ver docs/planejamento/02 - Descoberta com o Cliente.md, pergunta em
+   aberto). Troque estes valores assim que a Vila Bela validar uma
+   identidade visual — o resto do CSS não deveria precisar mudar, porque
+   cada página consome essas variáveis no próprio <style>, nunca uma cor
+   fixa direto no seletor. */
 
 :root {
-  /* --cor-fundo: ...; */
-  /* --cor-destaque: ...; */
-  /* --font-display: ...; */
-  /* --font-body: ...; */
+  --cor-fundo: #faf7f2;
+  --cor-fundo-elevado: #ffffff;
+  --cor-texto: #2b2420;
+  --cor-texto-suave: #766b60;
+  --cor-borda: #e6ddd0;
+
+  --cor-destaque: #b5482a;
+  --cor-destaque-texto: #ffffff;
+
+  --cor-disponivel: #2f7d4f;
+  --cor-disponivel-fundo: #e7f4ec;
+  --cor-indisponivel: #857a6d;
+  --cor-indisponivel-fundo: #efeae2;
+  --cor-alerta: #b3261e;
+  --cor-alerta-fundo: #fbeceb;
+
+  --font-display: -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --raio: 10px;
+  --sombra: 0 1px 3px rgba(43, 36, 32, 0.12);
 }

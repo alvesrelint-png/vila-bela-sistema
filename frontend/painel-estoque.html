@@ -5,29 +5,701 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vila Bela — Painel de Estoque</title>
 <link rel="stylesheet" href="tema.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-family: var(--font-body);
+  }
+
+  /* --- Tela de login --------------------------------------------------- */
+  .tela-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tela-login form {
+    background: var(--cor-fundo-elevado);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    padding: 32px;
+    width: 280px;
+    text-align: center;
+  }
+  .tela-login h1 {
+    font-family: var(--font-display);
+    margin: 0 0 4px;
+    letter-spacing: 0.05em;
+  }
+  .tela-login p {
+    color: var(--cor-texto-suave);
+    margin-top: 0;
+  }
+  .tela-login input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  .erro-login {
+    color: var(--cor-alerta);
+    font-size: 0.85rem;
+  }
+
+  /* --- Painel principal -------------------------------------------------- */
+  header.topo {
+    background: var(--cor-destaque);
+    color: var(--cor-destaque-texto);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header.topo h1 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin: 0;
+    letter-spacing: 0.05em;
+  }
+  header.topo button {
+    background: transparent;
+    border: 1px solid var(--cor-destaque-texto);
+    color: var(--cor-destaque-texto);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  nav.abas {
+    display: flex;
+    gap: 4px;
+    padding: 12px 20px 0;
+    background: var(--cor-fundo-elevado);
+    border-bottom: 1px solid var(--cor-borda);
+  }
+  nav.abas button {
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--cor-texto-suave);
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  nav.abas button.ativa {
+    color: var(--cor-destaque);
+    border-bottom-color: var(--cor-destaque);
+    font-weight: 600;
+  }
+
+  main {
+    padding: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .banner-erro {
+    background: var(--cor-alerta-fundo);
+    color: var(--cor-alerta);
+    padding: 10px 14px;
+    border-radius: var(--raio);
+    margin-bottom: 16px;
+  }
+
+  .colunas {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media (min-width: 800px) {
+    .colunas.duas { grid-template-columns: 1fr 1fr; }
+  }
+
+  .cartao {
+    background: var(--cor-fundo-elevado);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    padding: 16px;
+  }
+  .cartao h2 {
+    margin-top: 0;
+    font-size: 1.05rem;
+  }
+
+  .form-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .form-inline input,
+  .form-inline select {
+    padding: 8px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .form-inline button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--cor-destaque);
+    color: var(--cor-destaque-texto);
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid var(--cor-borda);
+  }
+  tbody tr { cursor: pointer; }
+  tbody tr.selecionada { background: var(--cor-disponivel-fundo); }
+  tbody tr:hover { background: var(--cor-fundo); }
+
+  td button {
+    padding: 4px 10px;
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-fundo-elevado);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+  }
+  td button:disabled { opacity: 0.4; cursor: default; }
+
+  .situacao-ativo, .situacao-valido { color: var(--cor-disponivel); font-weight: 600; }
+  .situacao-inativo, .situacao-vencido { color: var(--cor-indisponivel); font-weight: 600; }
+
+  .diagnostico {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: var(--raio);
+    font-size: 0.9rem;
+  }
+  .diagnostico.disponivel { background: var(--cor-disponivel-fundo); color: var(--cor-disponivel); }
+  .diagnostico.indisponivel { background: var(--cor-indisponivel-fundo); color: var(--cor-texto); }
+
+  .aviso-vazio { color: var(--cor-texto-suave); }
+</style>
 </head>
 <body>
 
-<!--
-  TODO (Sprint 1): área administrativa/operacional — protegida por login
-  (ver backend/app/routers/auth.py). Estrutura de referência:
-  ../docs/planejamento/08 - Wireframes.md, seções "6. Painel de estoque" e
-  "Ficha técnica".
+<div class="tela-login" id="tela-login">
+  <form id="form-login">
+    <h1>VILA BELA</h1>
+    <p>Acesso administrativo</p>
+    <input type="password" id="campo-senha" placeholder="Senha" required autofocus />
+    <button type="submit">Entrar</button>
+    <p class="erro-login" id="erro-login" hidden></p>
+  </form>
+</div>
 
-  Abas ou seções:
-  1. Ingredientes — listar (nome, unidade, saldo válido calculado, situação),
-     criar novo, desativar (nunca excluir).
-  2. Lotes do ingrediente selecionado — mestre-detalhe: ao clicar num
-     ingrediente, mostrar seus lotes (quantidade, validade, entrada,
-     situação vencido/válido). Formulário de novo lote.
-  3. Itens do cardápio — nome, categoria, preço, situação; e a ficha técnica
-     de cada item (lista de ingrediente + quantidade necessária), com a
-     disponibilidade calculada e o motivo do bloqueio quando indisponível
-     (ver wireframe da ficha técnica).
+<div id="tela-painel" hidden>
+  <header class="topo">
+    <h1>VILA BELA — Estoque</h1>
+    <button id="botao-sair" type="button">Sair</button>
+  </header>
 
-  Este painel é o que sustenta o incremento do Sprint 1 — sem ele, ninguém
-  alimenta o cálculo de disponibilidade que aparece em index.html.
--->
+  <nav class="abas">
+    <button data-aba="estoque" class="ativa">Ingredientes e lotes</button>
+    <button data-aba="cardapio">Cardápio</button>
+    <button data-aba="fichas">Fichas técnicas</button>
+  </nav>
+
+  <main>
+    <div class="banner-erro" id="banner-erro" hidden></div>
+
+    <!-- ============================ Estoque ============================ -->
+    <section id="aba-estoque" class="colunas duas">
+      <div class="cartao">
+        <h2>Ingredientes</h2>
+        <form id="form-ingrediente" class="form-inline">
+          <input type="text" id="ing-nome" placeholder="Nome do ingrediente" required />
+          <select id="ing-unidade">
+            <option value="unidade">unidade</option>
+            <option value="grama">grama</option>
+            <option value="mililitro">mililitro</option>
+          </select>
+          <button type="submit">+ Novo ingrediente</button>
+        </form>
+        <table>
+          <thead>
+            <tr><th>Nome</th><th>Unidade</th><th>Saldo válido</th><th>Situação</th><th></th></tr>
+          </thead>
+          <tbody id="tabela-ingredientes"></tbody>
+        </table>
+      </div>
+
+      <div class="cartao" id="painel-lotes" hidden>
+        <h2>Lotes de <span id="nome-ingrediente-selecionado"></span></h2>
+        <form id="form-lote" class="form-inline">
+          <input type="number" id="lote-quantidade" placeholder="Quantidade" min="0.001" step="0.001" required />
+          <input type="date" id="lote-validade" required />
+          <button type="submit">+ Novo lote</button>
+        </form>
+        <table>
+          <thead>
+            <tr><th>Quantidade</th><th>Validade</th><th>Entrada</th><th>Situação</th></tr>
+          </thead>
+          <tbody id="tabela-lotes"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================ Cardápio ============================ -->
+    <section id="aba-cardapio" class="colunas duas" hidden>
+      <div class="cartao">
+        <h2>Categorias</h2>
+        <form id="form-categoria" class="form-inline">
+          <input type="text" id="cat-nome" placeholder="Nome da categoria" required />
+          <input type="number" id="cat-ordem" placeholder="Ordem" value="0" />
+          <button type="submit">+ Nova categoria</button>
+        </form>
+        <table>
+          <thead><tr><th>Nome</th><th>Ordem</th><th>Situação</th><th></th></tr></thead>
+          <tbody id="tabela-categorias"></tbody>
+        </table>
+      </div>
+
+      <div class="cartao">
+        <h2>Itens do cardápio</h2>
+        <form id="form-item" class="form-inline">
+          <input type="text" id="item-nome" placeholder="Nome do item" required />
+          <select id="item-categoria"></select>
+          <input type="number" id="item-preco" placeholder="Preço" min="0.01" step="0.01" required />
+          <input type="text" id="item-descricao" placeholder="Descrição (opcional)" />
+          <button type="submit">+ Novo item</button>
+        </form>
+        <table>
+          <thead><tr><th>Nome</th><th>Categoria</th><th>Preço</th><th>Situação</th><th></th></tr></thead>
+          <tbody id="tabela-itens"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================ Fichas técnicas ============================ -->
+    <section id="aba-fichas" hidden>
+      <div class="cartao">
+        <h2>Ficha técnica — <span id="nome-item-selecionado">nenhum item selecionado</span></h2>
+
+        <p class="aviso-vazio" id="sem-item-selecionado">
+          Selecione um item na aba "Cardápio" (botão "Ficha técnica" na linha do item) para editar a ficha.
+        </p>
+
+        <div id="painel-ficha" hidden>
+          <form id="form-ficha" class="form-inline">
+            <select id="ficha-ingrediente"></select>
+            <input type="number" id="ficha-quantidade" placeholder="Quantidade necessária" min="0.001" step="0.001" required />
+            <button type="submit">+ Adicionar ingrediente à ficha</button>
+          </form>
+          <table>
+            <thead><tr><th>Ingrediente</th><th>Quantidade necessária</th></tr></thead>
+            <tbody id="tabela-ficha"></tbody>
+          </table>
+          <div id="diagnostico-disponibilidade"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  // Ajuste este valor se o backend não estiver rodando em localhost:8000.
+  const API_BASE = "http://localhost:8000";
+
+  let token = localStorage.getItem("vila_bela_token") || null;
+  let ingredientes = [];
+  let categorias = [];
+  let itens = [];
+  let ingredienteSelecionadoId = null;
+  let itemSelecionadoId = null;
+
+  // --- Infraestrutura -----------------------------------------------------
+
+  async function apiFetch(caminho, opcoes = {}) {
+    const cabecalhos = Object.assign({ "Content-Type": "application/json" }, opcoes.headers || {});
+    if (token) cabecalhos["Authorization"] = `Bearer ${token}`;
+
+    const resposta = await fetch(`${API_BASE}${caminho}`, { ...opcoes, headers: cabecalhos });
+
+    if (resposta.status === 401) {
+      logout();
+      throw new Error("Sessão expirada ou senha incorreta. Faça login novamente.");
+    }
+    if (!resposta.ok) {
+      const corpo = await resposta.json().catch(() => ({}));
+      throw new Error(corpo.detail || `Erro ${resposta.status} ao falar com a API.`);
+    }
+    if (resposta.status === 204) return null;
+    return resposta.json();
+  }
+
+  function mostrarErro(mensagem) {
+    const banner = document.getElementById("banner-erro");
+    banner.textContent = mensagem;
+    banner.hidden = false;
+    clearTimeout(mostrarErro._timeout);
+    mostrarErro._timeout = setTimeout(() => { banner.hidden = true; }, 6000);
+  }
+
+  function aoSubmeter(form, callback) {
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      try {
+        await callback();
+      } catch (erro) {
+        mostrarErro(erro.message);
+      }
+    });
+  }
+
+  function aoClicar(elemento, callback) {
+    elemento.addEventListener("click", async (evento) => {
+      evento.stopPropagation();
+      try {
+        await callback();
+      } catch (erro) {
+        mostrarErro(erro.message);
+      }
+    });
+  }
+
+  function escapeHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto ?? "";
+    return div.innerHTML;
+  }
+
+  function formatarData(iso) {
+    const [ano, mes, dia] = iso.split("-");
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  function formatarDataHora(iso) {
+    return new Date(iso).toLocaleString("pt-BR");
+  }
+
+  function formatarPreco(valor) {
+    return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function popularSelect(select, opcoes, textoDe) {
+    const valorAtual = select.value;
+    select.innerHTML = "";
+    for (const opcao of opcoes) {
+      const el = document.createElement("option");
+      el.value = opcao.id;
+      el.textContent = textoDe(opcao);
+      select.appendChild(el);
+    }
+    if ([...select.options].some((o) => o.value === valorAtual)) {
+      select.value = valorAtual;
+    }
+  }
+
+  // --- Login / navegação --------------------------------------------------
+
+  function mostrarPainel() {
+    document.getElementById("tela-login").hidden = true;
+    document.getElementById("tela-painel").hidden = false;
+    inicializarPainel().catch((erro) => mostrarErro(erro.message));
+  }
+
+  function logout() {
+    token = null;
+    localStorage.removeItem("vila_bela_token");
+    document.getElementById("tela-painel").hidden = true;
+    document.getElementById("tela-login").hidden = false;
+  }
+
+  function mudarAba(nome) {
+    for (const botao of document.querySelectorAll("nav.abas button")) {
+      botao.classList.toggle("ativa", botao.dataset.aba === nome);
+    }
+    for (const secao of document.querySelectorAll("main > section")) {
+      secao.hidden = secao.id !== `aba-${nome}`;
+    }
+  }
+
+  document.querySelectorAll("nav.abas button").forEach((botao) => {
+    botao.addEventListener("click", () => mudarAba(botao.dataset.aba));
+  });
+
+  document.getElementById("botao-sair").addEventListener("click", logout);
+
+  document.getElementById("form-login").addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const senha = document.getElementById("campo-senha").value;
+    const erroEl = document.getElementById("erro-login");
+    erroEl.hidden = true;
+    try {
+      const dados = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ senha }) });
+      token = dados.token;
+      localStorage.setItem("vila_bela_token", token);
+      mostrarPainel();
+    } catch (erro) {
+      erroEl.textContent = erro.message || "Senha incorreta.";
+      erroEl.hidden = false;
+    }
+  });
+
+  async function inicializarPainel() {
+    await carregarIngredientes();
+    await carregarCategorias();
+    await carregarItens();
+  }
+
+  // --- Ingredientes e lotes -------------------------------------------------
+
+  async function carregarIngredientes() {
+    ingredientes = await apiFetch("/ingredientes?incluir_inativos=true");
+    const corpo = document.getElementById("tabela-ingredientes");
+    corpo.innerHTML = "";
+    for (const ing of ingredientes) {
+      const tr = document.createElement("tr");
+      tr.className = ing.id === ingredienteSelecionadoId ? "selecionada" : "";
+      tr.innerHTML = `
+        <td>${escapeHtml(ing.nome)}</td>
+        <td>${ing.unidade_base}</td>
+        <td>${ing.saldo_disponivel}</td>
+        <td class="${ing.ativo ? "situacao-ativo" : "situacao-inativo"}">${ing.ativo ? "Ativo" : "Inativo"}</td>
+        <td><button data-id="${ing.id}">Desativar</button></td>
+      `;
+      tr.addEventListener("click", () => selecionarIngrediente(ing.id, ing.nome));
+      const botao = tr.querySelector("button");
+      botao.disabled = !ing.ativo;
+      aoClicar(botao, async () => {
+        await apiFetch(`/ingredientes/${ing.id}/desativar`, { method: "PATCH" });
+        await carregarIngredientes();
+      });
+      corpo.appendChild(tr);
+    }
+
+    popularSelect(
+      document.getElementById("ficha-ingrediente"),
+      ingredientes.filter((i) => i.ativo),
+      (i) => `${i.nome} (${i.unidade_base})`
+    );
+  }
+
+  function selecionarIngrediente(id, nome) {
+    ingredienteSelecionadoId = id;
+    document.getElementById("painel-lotes").hidden = false;
+    document.getElementById("nome-ingrediente-selecionado").textContent = nome;
+    carregarIngredientes().catch((erro) => mostrarErro(erro.message)); // reaplica destaque "selecionada"
+    carregarLotes().catch((erro) => mostrarErro(erro.message));
+  }
+
+  async function carregarLotes() {
+    if (!ingredienteSelecionadoId) return;
+    const lotes = await apiFetch(`/ingredientes/${ingredienteSelecionadoId}/lotes`);
+    const hoje = new Date().toISOString().slice(0, 10);
+    const corpo = document.getElementById("tabela-lotes");
+    corpo.innerHTML = "";
+    if (lotes.length === 0) {
+      corpo.innerHTML = '<tr><td colspan="4" class="aviso-vazio">Nenhum lote registrado ainda.</td></tr>';
+      return;
+    }
+    for (const lote of lotes) {
+      const vencido = lote.validade < hoje;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${lote.quantidade_atual}</td>
+        <td>${formatarData(lote.validade)}</td>
+        <td>${formatarDataHora(lote.data_entrada)}</td>
+        <td class="${vencido ? "situacao-vencido" : "situacao-valido"}">${vencido ? "Vencido" : "Válido"}</td>
+      `;
+      corpo.appendChild(tr);
+    }
+  }
+
+  aoSubmeter(document.getElementById("form-ingrediente"), async () => {
+    const nome = document.getElementById("ing-nome").value.trim();
+    const unidade_base = document.getElementById("ing-unidade").value;
+    await apiFetch("/ingredientes", { method: "POST", body: JSON.stringify({ nome, unidade_base }) });
+    document.getElementById("form-ingrediente").reset();
+    await carregarIngredientes();
+  });
+
+  aoSubmeter(document.getElementById("form-lote"), async () => {
+    if (!ingredienteSelecionadoId) {
+      throw new Error("Selecione um ingrediente antes de registrar um lote.");
+    }
+    const quantidade_atual = parseFloat(document.getElementById("lote-quantidade").value);
+    const validade = document.getElementById("lote-validade").value;
+    await apiFetch(`/ingredientes/${ingredienteSelecionadoId}/lotes`, {
+      method: "POST",
+      body: JSON.stringify({ quantidade_atual, validade }),
+    });
+    document.getElementById("form-lote").reset();
+    await carregarLotes();
+    await carregarIngredientes(); // o saldo válido mudou
+  });
+
+  // --- Cardápio: categorias e itens -----------------------------------------
+
+  async function carregarCategorias() {
+    categorias = await apiFetch("/categorias?incluir_inativas=true");
+    const corpo = document.getElementById("tabela-categorias");
+    corpo.innerHTML = "";
+    for (const cat of categorias) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(cat.nome)}</td>
+        <td>${cat.ordem}</td>
+        <td class="${cat.ativa ? "situacao-ativo" : "situacao-inativo"}">${cat.ativa ? "Ativa" : "Inativa"}</td>
+        <td><button data-id="${cat.id}">Desativar</button></td>
+      `;
+      const botao = tr.querySelector("button");
+      botao.disabled = !cat.ativa;
+      aoClicar(botao, async () => {
+        await apiFetch(`/categorias/${cat.id}`, { method: "PATCH", body: JSON.stringify({ ativa: false }) });
+        await carregarCategorias();
+      });
+      corpo.appendChild(tr);
+    }
+
+    popularSelect(document.getElementById("item-categoria"), categorias.filter((c) => c.ativa), (c) => c.nome);
+  }
+
+  async function carregarItens() {
+    itens = await apiFetch("/itens?incluir_inativos=true");
+    const corpo = document.getElementById("tabela-itens");
+    corpo.innerHTML = "";
+    for (const item of itens) {
+      const categoria = categorias.find((c) => c.id === item.categoria_id);
+      const tr = document.createElement("tr");
+      tr.className = item.id === itemSelecionadoId ? "selecionada" : "";
+      tr.innerHTML = `
+        <td>${escapeHtml(item.nome)}</td>
+        <td>${categoria ? escapeHtml(categoria.nome) : "—"}</td>
+        <td>${formatarPreco(item.preco)}</td>
+        <td class="${item.ativo ? "situacao-ativo" : "situacao-inativo"}">${item.ativo ? "Ativo" : "Inativo"}</td>
+        <td>
+          <button data-acao="ficha">Ficha técnica</button>
+          <button data-acao="desativar">Desativar</button>
+        </td>
+      `;
+      tr.querySelector('[data-acao="ficha"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        selecionarItem(item.id, item.nome);
+      });
+      const botaoDesativar = tr.querySelector('[data-acao="desativar"]');
+      botaoDesativar.disabled = !item.ativo;
+      aoClicar(botaoDesativar, async () => {
+        await apiFetch(`/itens/${item.id}/desativar`, { method: "PATCH" });
+        await carregarItens();
+      });
+      corpo.appendChild(tr);
+    }
+  }
+
+  aoSubmeter(document.getElementById("form-categoria"), async () => {
+    const nome = document.getElementById("cat-nome").value.trim();
+    const ordem = parseInt(document.getElementById("cat-ordem").value || "0", 10);
+    await apiFetch("/categorias", { method: "POST", body: JSON.stringify({ nome, ordem }) });
+    document.getElementById("form-categoria").reset();
+    await carregarCategorias();
+  });
+
+  aoSubmeter(document.getElementById("form-item"), async () => {
+    const categoriaSelect = document.getElementById("item-categoria");
+    if (!categoriaSelect.value) {
+      throw new Error("Cadastre uma categoria antes de criar um item do cardápio.");
+    }
+    const nome = document.getElementById("item-nome").value.trim();
+    const categoria_id = parseInt(categoriaSelect.value, 10);
+    const preco = document.getElementById("item-preco").value;
+    const descricao = document.getElementById("item-descricao").value.trim() || null;
+    await apiFetch("/itens", {
+      method: "POST",
+      body: JSON.stringify({ nome, categoria_id, preco, descricao }),
+    });
+    document.getElementById("form-item").reset();
+    await carregarItens();
+  });
+
+  // --- Fichas técnicas -------------------------------------------------------
+
+  function selecionarItem(id, nome) {
+    itemSelecionadoId = id;
+    document.getElementById("nome-item-selecionado").textContent = nome;
+    document.getElementById("sem-item-selecionado").hidden = true;
+    document.getElementById("painel-ficha").hidden = false;
+    mudarAba("fichas");
+    carregarFicha().catch((erro) => mostrarErro(erro.message));
+  }
+
+  async function carregarFicha() {
+    if (!itemSelecionadoId) return;
+
+    const [ficha, diagnostico] = await Promise.all([
+      apiFetch(`/itens/${itemSelecionadoId}/ficha-tecnica`),
+      apiFetch(`/itens/${itemSelecionadoId}/disponibilidade`),
+    ]);
+
+    const corpo = document.getElementById("tabela-ficha");
+    corpo.innerHTML = "";
+    if (ficha.length === 0) {
+      corpo.innerHTML = '<tr><td colspan="2" class="aviso-vazio">Nenhum ingrediente na ficha ainda.</td></tr>';
+    }
+    for (const linha of ficha) {
+      const ingrediente = ingredientes.find((i) => i.id === linha.ingrediente_id);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${ingrediente ? escapeHtml(ingrediente.nome) : `#${linha.ingrediente_id}`}</td>
+        <td>${linha.quantidade_necessaria}${ingrediente ? " " + ingrediente.unidade_base : ""}</td>
+      `;
+      corpo.appendChild(tr);
+    }
+
+    const painel = document.getElementById("diagnostico-disponibilidade");
+    if (diagnostico.disponivel) {
+      painel.innerHTML = `<div class="diagnostico disponivel">Disponibilidade calculada: DISPONÍVEL</div>`;
+    } else if (diagnostico.ingredientes_faltando.length > 0) {
+      const motivos = diagnostico.ingredientes_faltando
+        .map((f) => `${escapeHtml(f.nome)} — saldo válido ${f.saldo_disponivel}, necessário ${f.quantidade_necessaria}`)
+        .join("; ");
+      painel.innerHTML = `<div class="diagnostico indisponivel">Disponibilidade calculada: INDISPONÍVEL<br>(falta: ${motivos})</div>`;
+    } else {
+      painel.innerHTML = `<div class="diagnostico indisponivel">Disponibilidade calculada: INDISPONÍVEL (item inativo)</div>`;
+    }
+  }
+
+  aoSubmeter(document.getElementById("form-ficha"), async () => {
+    const ingredienteSelect = document.getElementById("ficha-ingrediente");
+    if (!ingredienteSelect.value) {
+      throw new Error("Cadastre um ingrediente antes de montar a ficha técnica.");
+    }
+    const ingrediente_id = parseInt(ingredienteSelect.value, 10);
+    const quantidade_necessaria = parseFloat(document.getElementById("ficha-quantidade").value);
+    await apiFetch(`/itens/${itemSelecionadoId}/ficha-tecnica`, {
+      method: "POST",
+      body: JSON.stringify({ ingrediente_id, quantidade_necessaria }),
+    });
+    document.getElementById("form-ficha").reset();
+    await carregarFicha();
+  });
+
+  // --- Início ---------------------------------------------------------------
+
+  if (token) {
+    mostrarPainel();
+  }
+</script>
 
 </body>
 </html>
