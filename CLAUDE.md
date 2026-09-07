@@ -21,8 +21,12 @@ faltar qualquer um, o item fica indisponível automaticamente — sem intervenç
 manual.
 
 O consumidor acessa por QR code na mesa, escolhe pelo celular, sem instalar
-aplicativo e sem criar conta. Pagamento é presencial, fora do sistema (fora do
-MVP de propósito).
+aplicativo e sem criar conta. Pagamento é presencial, fora do sistema — o
+sistema só **registra** valor e forma de pagamento por atendimento (mesa),
+nunca processa pagamento de verdade (gateway/maquininha continuam fora do
+MVP de propósito). O controle de mesas (pedidos, situação, tempo de
+ocupação) e um relatório simples de ocupação por dia da semana/hora
+entraram no MVP em 2026-09-07 — ver a nota em `01 - Visão do Produto.md`.
 
 ## Stack — dois ambientes diferentes, de propósito
 
@@ -60,9 +64,14 @@ Dados.md` juntos, para não ficarem contradizendo um ao outro.
 6. Cardápio público exibindo item disponível/indisponível
 7. Acesso administrativo mínimo (protege cadastro de ingredientes/cardápio)
 
-**Sprint 2 — Pedido integrado (não implementar antes do Sprint 1 estar pronto):**
-identificação da mesa, carrinho, envio do pedido, fila operacional, reserva e
-baixa de estoque, cancelamento com restauração.
+**Sprint 2 — Pedido integrado (implementado em 2026-09-07, depois do Sprint 1
+pronto):** identificação da mesa, envio do pedido (lançado pelo operador —
+carrinho self-service do consumidor fica para depois), fila operacional,
+reserva e baixa de estoque, cancelamento com restauração, controle de mesas
+(situação, tempo de ocupação), registro de pagamento por atendimento e
+relatório de ocupação por dia da semana/hora — os três últimos ampliaram o
+escopo original do MVP, ver `01 - Visão do Produto.md` e `04 - Backlog e
+MVP.md`.
 
 **Sprint 3 — Robustez:** avisos de estoque baixo/validade próxima, histórico de
 movimentações.
@@ -73,11 +82,13 @@ tabela MoSCoW em `04 - Backlog e MVP.md`).
 
 ## Modelo de dados (conceitual — `05 - Arquitetura e Dados.md`)
 
-10 entidades: `Ingrediente`, `LoteEstoque`, `Movimentacao`, `Categoria`,
-`ItemCardapio`, `FichaTecnica`, `Mesa`, `Pedido`, `ItemPedido`,
-`UsuarioInterno`. Os nomes de campo sugeridos estão no arquivo de arquitetura;
-os stubs em `backend/app/models.py` já listam as 10 classes com comentários —
-preencha as colunas a partir de lá.
+11 entidades: `Ingrediente`, `LoteEstoque`, `Movimentacao`, `Categoria`,
+`ItemCardapio`, `FichaTecnica`, `Mesa`, `Atendimento`, `Pedido`, `ItemPedido`,
+`UsuarioInterno`. `Atendimento` é a única que não estava no modelo original —
+agrupa os pedidos de uma sentada da mesa (abre no 1º pedido, fecha quando a
+conta é paga); `Pedido` referencia `Atendimento`, não `Mesa` diretamente. Os
+nomes de campo estão no arquivo de arquitetura; `backend/app/models.py` já
+implementa as 11 classes.
 
 ## Regras de domínio (não negociáveis sem atualizar o planejamento)
 
@@ -108,10 +119,13 @@ preencha as colunas a partir de lá.
 - Todo endpoint que mexe em estoque deve ser pensado para concorrência (dois
   pedidos ao mesmo tempo não podem ambos reservar o último ingrediente).
 
-## O que este esqueleto já tem vs. o que falta
+## O que já está implementado vs. o que falta
 
-Este repositório tem **apenas estrutura de pastas e arquivos-stub com TODO** —
-nenhuma lógica implementada. Isso é proposital: o objetivo é que o Claude Code
-gere o código de verdade em cima deste esqueleto, sprint por sprint, em vez de
-partir de uma pasta vazia. Comece pelo Sprint 1, arquivo por arquivo, seguindo
-os comentários `# TODO` deixados em cada stub.
+Sprint 1 (estoque → cardápio) e Sprint 2 (mesa, pedido, pagamento e relatório
+de ocupação) estão implementados e testados — backend (`backend/app/`) e
+frontend (`frontend/index.html`, `painel-estoque.html`, `painel-pedidos.html`).
+Falta: o carrinho self-service do consumidor (hoje quem lança o pedido é o
+operador, pelo `painel-pedidos.html`) e o Sprint 3 (avisos de estoque
+baixo/validade, histórico de pedidos e movimentações). `backend/app/routers/`
+e `backend/app/services/` seguem o mesmo padrão dos arquivos já prontos —
+use-os como referência ao continuar.

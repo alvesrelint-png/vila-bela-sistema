@@ -22,10 +22,13 @@
 | Aviso de estoque baixo | Should | Sprint 3 | Sim | Ajuda a prevenir indisponibilidade inesperada |
 | Aviso de validade próxima | Should | Sprint 3 | Sim | Apoia redução de perdas |
 | Histórico de pedidos e movimentações | Should | Sprint 3 | Sim | Facilita conferência e rastreabilidade |
+| Controle de mesas (situação, pedidos, tempo de ocupação) | Must | Sprint 2 | Sim | Sem isso a operação não sabe o que está aberto, servido ou pronto pra fechar |
+| Registro de pagamento por atendimento (valor + forma) | Must | Sprint 2 | Sim | Registro interno do que o operador informou ao fechar a conta — não é gateway (isso continua Won't, ver abaixo) |
+| Relatório de ocupação por dia da semana e hora | Must | Sprint 2 | Sim | Adicionado a pedido da equipe em 2026-09-07 — ver nota em [[01 - Visão do Produto]] |
 | Geração e impressão do QR das mesas | Could | Sprint 2 | Não | Pode ser feita inicialmente por ferramenta externa (gerador de QR gratuito) |
 | Personalização visual avançada | Could | — | Não | Não é essencial para provar os fluxos |
-| Relatórios e indicadores avançados | Could | — | Não | Dependem de dados acumulados ao longo do uso |
-| Pagamento integrado | Won't | — | Não | Aumenta risco e complexidade sem ser necessário no MVP |
+| Relatórios e indicadores avançados (dashboards, comparativos, previsão de demanda) | Could | — | Não | O relatório *simples* de ocupação por dia/hora entrou no MVP (linha acima); análises mais sofisticadas continuam fora |
+| Pagamento processado pelo sistema (gateway, maquininha) | Won't | — | Não | Aumenta risco e complexidade sem ser necessário no MVP — o *registro* de valor/forma é diferente e entrou no MVP (linha acima) |
 | Delivery | Won't | — | Não | Está fora do atendimento por QR code na mesa |
 | Emissão fiscal | Won't | — | Não | Exige integrações e regras externas ao objetivo acadêmico |
 
@@ -51,6 +54,50 @@ Demonstrar que a disponibilidade do cardápio responde automaticamente à quanti
 - [ ] Marcar o item como indisponível quando faltar qualquer ingrediente.
 - [ ] Recalcular a disponibilidade após entrada, ajuste ou vencimento de estoque.
 - [ ] Impedir seleção do item indisponível no cardápio público.
+
+## Segundo incremento - Mesa, pedido e pagamento
+
+> [!important] Ampliação de escopo — 2026-09-07
+> Controle de mesas, registro de pagamento e o relatório de ocupação
+> entraram no MVP a pedido da equipe, depois do Sprint 1 pronto — ver a
+> nota em [[01 - Visão do Produto]]. O pagamento continua sendo só
+> REGISTRO (valor e forma informados pelo operador ao fechar a conta); o
+> sistema não processa pagamento de verdade, isso segue acontecendo fora
+> do sistema.
+
+### Objetivo
+
+Demonstrar o ciclo completo de uma mesa: pedido lançado com reserva de
+estoque, fila operacional, fechamento da conta com forma de pagamento
+registrada, e visibilidade de quando/quanto a casa mais vende.
+
+### Histórias de usuário
+
+- Como operador, quero lançar o pedido de uma mesa e ver o estoque
+  reservado automaticamente, para não vender o que não existe.
+- Como operador, quero ver todas as mesas, sua situação e há quanto tempo
+  estão ocupadas, para gerenciar o salão.
+- Como operador, quero fechar a conta de uma mesa registrando a forma de
+  pagamento, para saber o que já foi cobrado.
+- Como responsável pelo negócio, quero um relatório simples de ocupação e
+  receita por dia da semana e horário, para saber quando a casa mais
+  enche e quando mais fatura.
+
+### Critérios de aceitação
+
+- [x] Criar pedido revalida e reserva estoque numa única operação; se
+      faltar qualquer ingrediente, nada é alterado (nem o pedido, nem
+      reservas parciais de itens anteriores da mesma comanda).
+- [x] A mesa abre um atendimento sozinha no primeiro pedido; não existem
+      dois atendimentos abertos ao mesmo tempo para a mesma mesa.
+- [x] Cancelar um pedido restaura só a reserva daquele pedido, nunca a de
+      outro pedido da mesma mesa ou de outra mesa.
+- [x] Fechar a conta exige a forma de pagamento e marca a mesa como livre
+      de novo.
+- [x] Fechar a conta com algum pedido ainda não entregue (nem cancelado) é
+      bloqueado.
+- [x] O relatório de ocupação soma atendimentos por dia da semana e por
+      hora, no fuso de Palmas; a receita só conta atendimentos já pagos.
 
 ## Backlog da Sprint 0
 

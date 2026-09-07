@@ -5,18 +5,706 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vila Bela — Painel de Pedidos</title>
 <link rel="stylesheet" href="tema.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-family: var(--font-body);
+  }
+
+  /* --- Tela de login (igual ao painel de estoque; mesmo token/localStorage) */
+  .tela-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tela-login form {
+    background: var(--cor-fundo-elevado);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    padding: 32px;
+    width: 280px;
+    text-align: center;
+  }
+  .tela-login h1 { font-family: var(--font-display); margin: 0 0 4px; letter-spacing: 0.05em; }
+  .tela-login p { color: var(--cor-texto-suave); margin-top: 0; }
+  .tela-login input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  .erro-login { color: var(--cor-alerta); font-size: 0.85rem; }
+
+  /* --- Painel principal --- */
+  header.topo {
+    background: var(--cor-destaque);
+    color: var(--cor-destaque-texto);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header.topo h1 { font-family: var(--font-display); font-size: 1.1rem; margin: 0; letter-spacing: 0.05em; }
+  header.topo button {
+    background: transparent;
+    border: 1px solid var(--cor-destaque-texto);
+    color: var(--cor-destaque-texto);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  nav.abas {
+    display: flex;
+    gap: 4px;
+    padding: 12px 20px 0;
+    background: var(--cor-fundo-elevado);
+    border-bottom: 1px solid var(--cor-borda);
+  }
+  nav.abas button {
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--cor-texto-suave);
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  nav.abas button.ativa { color: var(--cor-destaque); border-bottom-color: var(--cor-destaque); font-weight: 600; }
+
+  main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+
+  .banner-erro {
+    background: var(--cor-alerta-fundo);
+    color: var(--cor-alerta);
+    padding: 10px 14px;
+    border-radius: var(--raio);
+    margin-bottom: 16px;
+  }
+
+  .cartao {
+    background: var(--cor-fundo-elevado);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    padding: 16px;
+  }
+
+  .form-inline { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .form-inline input, .form-inline select {
+    padding: 8px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .form-inline button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--cor-destaque);
+    color: var(--cor-destaque-texto);
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .form-inline button.secundario {
+    background: var(--cor-fundo-elevado);
+    color: var(--cor-texto);
+    border: 1px solid var(--cor-borda);
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--cor-borda); }
+  td button {
+    padding: 4px 10px;
+    border: 1px solid var(--cor-borda);
+    background: var(--cor-fundo-elevado);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    margin-right: 4px;
+  }
+  td button:disabled { opacity: 0.4; cursor: default; }
+
+  .situacao-livre { color: var(--cor-disponivel); font-weight: 600; }
+  .situacao-ocupada { color: var(--cor-alerta); font-weight: 600; }
+
+  /* --- Fila (Kanban) --- */
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
+    gap: 16px;
+    overflow-x: auto;
+  }
+  .coluna-kanban h2 {
+    font-size: 0.95rem;
+    margin: 0 0 10px;
+    color: var(--cor-texto-suave);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .cartao-pedido {
+    background: var(--cor-fundo-elevado);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .cartao-pedido .mesa { font-weight: 700; }
+  .cartao-pedido ul { margin: 6px 0; padding-left: 18px; font-size: 0.85rem; }
+  .cartao-pedido .acoes { display: flex; gap: 6px; margin-top: 8px; }
+  .cartao-pedido .acoes button { flex: 1; }
+  .vazio-kanban { color: var(--cor-texto-suave); font-size: 0.85rem; }
+
+  /* --- Relatório --- */
+  .destaque-relatorio {
+    background: var(--cor-disponivel-fundo);
+    color: var(--cor-disponivel);
+    font-weight: 700;
+  }
+  .grade-relatorio {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media (min-width: 800px) {
+    .grade-relatorio { grid-template-columns: 1fr 1fr; }
+  }
+
+  .aviso-vazio { color: var(--cor-texto-suave); }
+</style>
 </head>
 <body>
 
-<!--
-  TODO (SPRINT 2 — não começar antes do Sprint 1 estar pronto).
-  Fila operacional de pedidos, estilo Kanban por situação (Recebidos / Em
-  preparo / Prontos / Entregues). Estrutura de referência:
-  ../docs/planejamento/08 - Wireframes.md, seção "5. Painel operacional".
+<div class="tela-login" id="tela-login">
+  <form id="form-login">
+    <h1>VILA BELA</h1>
+    <p>Acesso operacional</p>
+    <input type="password" id="campo-senha" placeholder="Senha" required autofocus />
+    <button type="submit">Entrar</button>
+    <p class="erro-login" id="erro-login" hidden></p>
+  </form>
+</div>
 
-  Cada cartão de pedido: mesa, quantidade de itens, botão para avançar a
-  situação (chama PATCH /pedidos/{id}/situacao no backend).
--->
+<div id="tela-painel" hidden>
+  <header class="topo">
+    <h1>VILA BELA — Pedidos</h1>
+    <button id="botao-sair" type="button">Sair</button>
+  </header>
+
+  <nav class="abas">
+    <button data-aba="fila" class="ativa">Fila de pedidos</button>
+    <button data-aba="mesas">Mesas</button>
+    <button data-aba="relatorio">Relatório</button>
+  </nav>
+
+  <main>
+    <div class="banner-erro" id="banner-erro" hidden></div>
+
+    <!-- ============================ Fila (Kanban) ============================ -->
+    <section id="aba-fila">
+      <div class="kanban">
+        <div class="coluna-kanban">
+          <h2>Recebidos</h2>
+          <div id="coluna-recebido"></div>
+        </div>
+        <div class="coluna-kanban">
+          <h2>Em preparo</h2>
+          <div id="coluna-em_preparo"></div>
+        </div>
+        <div class="coluna-kanban">
+          <h2>Prontos</h2>
+          <div id="coluna-pronto"></div>
+        </div>
+        <div class="coluna-kanban">
+          <h2>Entregues</h2>
+          <div id="coluna-entregue"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ Mesas ============================ -->
+    <section id="aba-mesas" hidden>
+      <div class="cartao" style="margin-bottom: 16px;">
+        <table>
+          <thead>
+            <tr><th>Mesa</th><th>Situação</th><th>Aberta há</th><th>Consumido</th><th></th></tr>
+          </thead>
+          <tbody id="tabela-mesas"></tbody>
+        </table>
+      </div>
+
+      <div class="cartao" id="painel-novo-pedido" hidden>
+        <h2>Novo pedido — Mesa <span id="mesa-novo-pedido"></span></h2>
+        <form id="form-item-pedido" class="form-inline">
+          <select id="np-item"></select>
+          <input type="number" id="np-quantidade" placeholder="Qtd." min="1" step="1" value="1" required />
+          <input type="text" id="np-observacao" placeholder="Observação (opcional)" />
+          <button type="submit">+ Adicionar à comanda</button>
+        </form>
+        <table>
+          <thead><tr><th>Item</th><th>Qtd.</th><th>Observação</th><th></th></tr></thead>
+          <tbody id="tabela-rascunho-pedido"></tbody>
+        </table>
+        <div class="form-inline" style="margin-top: 12px;">
+          <button type="button" id="botao-enviar-pedido">Enviar pedido</button>
+          <button type="button" class="secundario" id="botao-cancelar-novo-pedido">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="cartao" id="painel-fechar-conta" hidden>
+        <h2>Fechar conta — Mesa <span id="mesa-fechar-conta"></span></h2>
+        <form id="form-fechar-conta" class="form-inline">
+          <select id="fc-forma-pagamento">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="cartao">Cartão</option>
+            <option value="pix">Pix</option>
+            <option value="outro">Outro</option>
+          </select>
+          <button type="submit">Confirmar fechamento</button>
+          <button type="button" class="secundario" id="botao-cancelar-fechar-conta">Cancelar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============================ Relatório ============================ -->
+    <section id="aba-relatorio" hidden>
+      <p class="aviso-vazio">
+        Ocupação = quantos atendimentos começaram naquele dia/horário (mesa foi ocupada), pagos ou não.
+        Receita só soma contas já fechadas e pagas.
+      </p>
+      <div class="grade-relatorio">
+        <div class="cartao">
+          <h2>Por dia da semana</h2>
+          <table>
+            <thead><tr><th>Dia</th><th>Atendimentos</th><th>Receita</th><th>Ticket médio</th></tr></thead>
+            <tbody id="tabela-relatorio-dia"></tbody>
+          </table>
+        </div>
+        <div class="cartao">
+          <h2>Por hora do dia</h2>
+          <table>
+            <thead><tr><th>Hora</th><th>Atendimentos</th><th>Receita</th></tr></thead>
+            <tbody id="tabela-relatorio-hora"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  // Ajuste este valor se o backend não estiver rodando em localhost:8000.
+  const API_BASE = "http://localhost:8000";
+
+  // Mesmo token/localStorage do painel-estoque.html — logar num painel
+  // autentica o outro também, já que os dois são a mesma área operacional.
+  let token = localStorage.getItem("vila_bela_token") || null;
+
+  let itensCardapio = [];
+  let mesas = [];
+  let rascunhoNovoPedido = []; // [{item_id, nome, quantidade, observacao}]
+  let mesaEmLancamento = null; // codigo da mesa
+  let mesaFechandoConta = null; // { codigo, atendimentoId }
+
+  const ROTULO_SITUACAO_PEDIDO = {
+    recebido: "Recebido",
+    em_preparo: "Em preparo",
+    pronto: "Pronto",
+    entregue: "Entregue",
+  };
+  const PROXIMA_SITUACAO = { recebido: "em_preparo", em_preparo: "pronto", pronto: "entregue" };
+
+  const NOMES_HORA = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}h`);
+
+  // --- Infraestrutura (mesma receita do painel-estoque.html) -----------------
+
+  async function apiFetch(caminho, opcoes = {}) {
+    const cabecalhos = Object.assign({ "Content-Type": "application/json" }, opcoes.headers || {});
+    if (token) cabecalhos["Authorization"] = `Bearer ${token}`;
+
+    const resposta = await fetch(`${API_BASE}${caminho}`, { ...opcoes, headers: cabecalhos });
+
+    if (resposta.status === 401) {
+      logout();
+      throw new Error("Sessão expirada ou senha incorreta. Faça login novamente.");
+    }
+    if (!resposta.ok) {
+      const corpo = await resposta.json().catch(() => ({}));
+      throw new Error(corpo.detail || `Erro ${resposta.status} ao falar com a API.`);
+    }
+    if (resposta.status === 204) return null;
+    return resposta.json();
+  }
+
+  function mostrarErro(mensagem) {
+    const banner = document.getElementById("banner-erro");
+    banner.textContent = mensagem;
+    banner.hidden = false;
+    clearTimeout(mostrarErro._timeout);
+    mostrarErro._timeout = setTimeout(() => { banner.hidden = true; }, 6000);
+  }
+
+  function aoSubmeter(form, callback) {
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      try {
+        await callback();
+      } catch (erro) {
+        mostrarErro(erro.message);
+      }
+    });
+  }
+
+  function aoClicar(elemento, callback) {
+    elemento.addEventListener("click", async () => {
+      try {
+        await callback();
+      } catch (erro) {
+        mostrarErro(erro.message);
+      }
+    });
+  }
+
+  function escapeHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto ?? "";
+    return div.innerHTML;
+  }
+
+  function formatarPreco(valor) {
+    return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  // --- Login / navegação --------------------------------------------------
+
+  function mostrarPainel() {
+    document.getElementById("tela-login").hidden = true;
+    document.getElementById("tela-painel").hidden = false;
+    inicializarPainel().catch((erro) => mostrarErro(erro.message));
+  }
+
+  function logout() {
+    token = null;
+    localStorage.removeItem("vila_bela_token");
+    document.getElementById("tela-painel").hidden = true;
+    document.getElementById("tela-login").hidden = false;
+  }
+
+  function mudarAba(nome) {
+    for (const botao of document.querySelectorAll("nav.abas button")) {
+      botao.classList.toggle("ativa", botao.dataset.aba === nome);
+    }
+    for (const secao of document.querySelectorAll("main > section")) {
+      secao.hidden = secao.id !== `aba-${nome}`;
+    }
+    if (nome === "relatorio") {
+      carregarRelatorio().catch((erro) => mostrarErro(erro.message));
+    }
+  }
+
+  document.querySelectorAll("nav.abas button").forEach((botao) => {
+    botao.addEventListener("click", () => mudarAba(botao.dataset.aba));
+  });
+
+  document.getElementById("botao-sair").addEventListener("click", logout);
+
+  document.getElementById("form-login").addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const senha = document.getElementById("campo-senha").value;
+    const erroEl = document.getElementById("erro-login");
+    erroEl.hidden = true;
+    try {
+      const dados = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ senha }) });
+      token = dados.token;
+      localStorage.setItem("vila_bela_token", token);
+      mostrarPainel();
+    } catch (erro) {
+      erroEl.textContent = erro.message || "Senha incorreta.";
+      erroEl.hidden = false;
+    }
+  });
+
+  async function inicializarPainel() {
+    itensCardapio = await apiFetch("/itens");
+    popularSelectItens();
+    // carregarFila() lê o array `mesas` pra saber o código de cada
+    // atendimento — por isso mesas primeiro, fila depois (nunca em
+    // paralelo, senão a fila pode ler `mesas` ainda vazio).
+    await carregarMesas();
+    await carregarFila();
+  }
+
+  function popularSelectItens() {
+    const select = document.getElementById("np-item");
+    select.innerHTML = "";
+    for (const item of itensCardapio.filter((i) => i.ativo)) {
+      const opcao = document.createElement("option");
+      opcao.value = item.id;
+      opcao.textContent = `${item.nome} — ${formatarPreco(item.preco)}`;
+      select.appendChild(opcao);
+    }
+  }
+
+  // --- Fila de pedidos (Kanban) ----------------------------------------------
+
+  async function carregarFila() {
+    const pedidos = await apiFetch("/pedidos");
+    const mapaAtendimentoParaMesa = new Map(
+      mesas.filter((m) => m.atendimento_id).map((m) => [m.atendimento_id, m.codigo])
+    );
+    const mapaItens = new Map(itensCardapio.map((i) => [i.id, i]));
+
+    for (const situacao of ["recebido", "em_preparo", "pronto", "entregue"]) {
+      const coluna = document.getElementById(`coluna-${situacao}`);
+      const pedidosDaColuna = pedidos.filter((p) => p.situacao === situacao);
+
+      if (pedidosDaColuna.length === 0) {
+        coluna.innerHTML = '<p class="vazio-kanban">Nenhum pedido.</p>';
+        continue;
+      }
+
+      coluna.innerHTML = "";
+      for (const pedido of pedidosDaColuna) {
+        const mesaCodigo = mapaAtendimentoParaMesa.get(pedido.atendimento_id) || "?";
+        const itensHtml = pedido.itens
+          .map((ip) => {
+            const item = mapaItens.get(ip.item_id);
+            const nome = item ? item.nome : `#${ip.item_id}`;
+            return `<li>${ip.quantidade}x ${escapeHtml(nome)}${ip.observacao ? ` — ${escapeHtml(ip.observacao)}` : ""}</li>`;
+          })
+          .join("");
+
+        const cartao = document.createElement("div");
+        cartao.className = "cartao-pedido";
+        cartao.innerHTML = `
+          <div class="mesa">Mesa ${escapeHtml(mesaCodigo)}</div>
+          <ul>${itensHtml}</ul>
+          <div class="preco">${formatarPreco(pedido.valor_total)}</div>
+          <div class="acoes"></div>
+        `;
+
+        const acoes = cartao.querySelector(".acoes");
+        const proxima = PROXIMA_SITUACAO[pedido.situacao];
+        if (proxima) {
+          const botaoAvancar = document.createElement("button");
+          botaoAvancar.textContent = `${ROTULO_SITUACAO_PEDIDO[proxima]} >`;
+          aoClicar(botaoAvancar, async () => {
+            await apiFetch(`/pedidos/${pedido.id}/situacao`, {
+              method: "PATCH",
+              body: JSON.stringify({ situacao: proxima }),
+            });
+            // carregarFila() lê o array `mesas` pra saber o código de cada
+    // atendimento — por isso mesas primeiro, fila depois (nunca em
+    // paralelo, senão a fila pode ler `mesas` ainda vazio).
+    await carregarMesas();
+    await carregarFila();
+          });
+          acoes.appendChild(botaoAvancar);
+        }
+
+        const botaoCancelar = document.createElement("button");
+        botaoCancelar.textContent = "Cancelar";
+        aoClicar(botaoCancelar, async () => {
+          await apiFetch(`/pedidos/${pedido.id}/cancelar`, { method: "PATCH" });
+          // carregarFila() lê o array `mesas` pra saber o código de cada
+    // atendimento — por isso mesas primeiro, fila depois (nunca em
+    // paralelo, senão a fila pode ler `mesas` ainda vazio).
+    await carregarMesas();
+    await carregarFila();
+        });
+        acoes.appendChild(botaoCancelar);
+
+        coluna.appendChild(cartao);
+      }
+    }
+  }
+
+  // --- Mesas -----------------------------------------------------------------
+
+  async function carregarMesas() {
+    mesas = await apiFetch("/mesas");
+    const corpo = document.getElementById("tabela-mesas");
+    corpo.innerHTML = "";
+    for (const mesa of mesas) {
+      const tr = document.createElement("tr");
+      const ocupada = mesa.situacao === "ocupada";
+      tr.innerHTML = `
+        <td>${escapeHtml(mesa.codigo)}</td>
+        <td class="${ocupada ? "situacao-ocupada" : "situacao-livre"}">${ocupada ? "Ocupada" : "Livre"}</td>
+        <td>${ocupada ? `${mesa.minutos_aberta} min` : "—"}</td>
+        <td>${ocupada ? formatarPreco(mesa.valor_total) : "—"}</td>
+        <td>
+          <button data-acao="lancar">Lançar pedido</button>
+          <button data-acao="fechar" ${ocupada ? "" : "disabled"}>Fechar conta</button>
+        </td>
+      `;
+      aoClicar(tr.querySelector('[data-acao="lancar"]'), async () => abrirNovoPedido(mesa.codigo));
+      aoClicar(tr.querySelector('[data-acao="fechar"]'), async () =>
+        abrirFecharConta(mesa.codigo, mesa.atendimento_id)
+      );
+      corpo.appendChild(tr);
+    }
+  }
+
+  // --- Novo pedido (lançado pelo operador) ------------------------------------
+
+  function abrirNovoPedido(codigo) {
+    mesaEmLancamento = codigo;
+    rascunhoNovoPedido = [];
+    document.getElementById("mesa-novo-pedido").textContent = codigo;
+    document.getElementById("painel-fechar-conta").hidden = true;
+    document.getElementById("painel-novo-pedido").hidden = false;
+    renderizarRascunhoPedido();
+  }
+
+  function renderizarRascunhoPedido() {
+    const corpo = document.getElementById("tabela-rascunho-pedido");
+    corpo.innerHTML = "";
+    if (rascunhoNovoPedido.length === 0) {
+      corpo.innerHTML = '<tr><td colspan="4" class="aviso-vazio">Nenhum item adicionado ainda.</td></tr>';
+      return;
+    }
+    rascunhoNovoPedido.forEach((linha, indice) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(linha.nome)}</td>
+        <td>${linha.quantidade}</td>
+        <td>${escapeHtml(linha.observacao || "")}</td>
+        <td><button type="button">Remover</button></td>
+      `;
+      aoClicar(tr.querySelector("button"), async () => {
+        rascunhoNovoPedido.splice(indice, 1);
+        renderizarRascunhoPedido();
+      });
+      corpo.appendChild(tr);
+    });
+  }
+
+  aoSubmeter(document.getElementById("form-item-pedido"), async () => {
+    const select = document.getElementById("np-item");
+    const itemId = parseInt(select.value, 10);
+    const item = itensCardapio.find((i) => i.id === itemId);
+    if (!item) throw new Error("Cadastre um item no cardápio antes de lançar um pedido.");
+
+    rascunhoNovoPedido.push({
+      item_id: itemId,
+      nome: item.nome,
+      quantidade: parseInt(document.getElementById("np-quantidade").value, 10),
+      observacao: document.getElementById("np-observacao").value.trim() || null,
+    });
+    document.getElementById("form-item-pedido").reset();
+    document.getElementById("np-quantidade").value = 1;
+    renderizarRascunhoPedido();
+  });
+
+  aoClicar(document.getElementById("botao-enviar-pedido"), async () => {
+    if (rascunhoNovoPedido.length === 0) {
+      throw new Error("Adicione ao menos um item à comanda antes de enviar.");
+    }
+    await apiFetch(`/mesas/${mesaEmLancamento}/pedidos`, {
+      method: "POST",
+      body: JSON.stringify({
+        itens: rascunhoNovoPedido.map(({ item_id, quantidade, observacao }) => ({
+          item_id,
+          quantidade,
+          observacao,
+        })),
+      }),
+    });
+    document.getElementById("painel-novo-pedido").hidden = true;
+    rascunhoNovoPedido = [];
+    // carregarFila() lê o array `mesas` pra saber o código de cada
+    // atendimento — por isso mesas primeiro, fila depois (nunca em
+    // paralelo, senão a fila pode ler `mesas` ainda vazio).
+    await carregarMesas();
+    await carregarFila();
+  });
+
+  document.getElementById("botao-cancelar-novo-pedido").addEventListener("click", () => {
+    document.getElementById("painel-novo-pedido").hidden = true;
+  });
+
+  // --- Fechar conta ------------------------------------------------------------
+
+  function abrirFecharConta(codigo, atendimentoId) {
+    mesaFechandoConta = { codigo, atendimentoId };
+    document.getElementById("mesa-fechar-conta").textContent = codigo;
+    document.getElementById("painel-novo-pedido").hidden = true;
+    document.getElementById("painel-fechar-conta").hidden = false;
+  }
+
+  aoSubmeter(document.getElementById("form-fechar-conta"), async () => {
+    const forma_pagamento = document.getElementById("fc-forma-pagamento").value;
+    await apiFetch(`/atendimentos/${mesaFechandoConta.atendimentoId}/fechar`, {
+      method: "PATCH",
+      body: JSON.stringify({ forma_pagamento }),
+    });
+    document.getElementById("painel-fechar-conta").hidden = true;
+    // carregarFila() lê o array `mesas` pra saber o código de cada
+    // atendimento — por isso mesas primeiro, fila depois (nunca em
+    // paralelo, senão a fila pode ler `mesas` ainda vazio).
+    await carregarMesas();
+    await carregarFila();
+  });
+
+  document.getElementById("botao-cancelar-fechar-conta").addEventListener("click", () => {
+    document.getElementById("painel-fechar-conta").hidden = true;
+  });
+
+  // --- Relatório de ocupação ----------------------------------------------------
+
+  async function carregarRelatorio() {
+    const relatorio = await apiFetch("/relatorios/ocupacao");
+
+    const maiorAtendimentos = Math.max(...relatorio.por_dia_semana.map((d) => d.atendimentos));
+    const maiorReceita = Math.max(...relatorio.por_dia_semana.map((d) => d.receita_total));
+
+    const corpoDia = document.getElementById("tabela-relatorio-dia");
+    corpoDia.innerHTML = "";
+    for (const dia of relatorio.por_dia_semana) {
+      const tr = document.createElement("tr");
+      const destaqueAtendimentos = dia.atendimentos > 0 && dia.atendimentos === maiorAtendimentos;
+      const destaqueReceita = dia.receita_total > 0 && dia.receita_total === maiorReceita;
+      tr.innerHTML = `
+        <td>${dia.nome}</td>
+        <td class="${destaqueAtendimentos ? "destaque-relatorio" : ""}">${dia.atendimentos}${destaqueAtendimentos ? " ★ mais movimento" : ""}</td>
+        <td class="${destaqueReceita ? "destaque-relatorio" : ""}">${formatarPreco(dia.receita_total)}${destaqueReceita ? " ★ maior receita" : ""}</td>
+        <td>${formatarPreco(dia.ticket_medio)}</td>
+      `;
+      corpoDia.appendChild(tr);
+    }
+
+    const corpoHora = document.getElementById("tabela-relatorio-hora");
+    corpoHora.innerHTML = "";
+    for (const hora of relatorio.por_hora) {
+      if (hora.atendimentos === 0 && hora.receita_total === 0) continue;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${NOMES_HORA[hora.hora]}</td>
+        <td>${hora.atendimentos}</td>
+        <td>${formatarPreco(hora.receita_total)}</td>
+      `;
+      corpoHora.appendChild(tr);
+    }
+    if (corpoHora.innerHTML === "") {
+      corpoHora.innerHTML = '<tr><td colspan="3" class="aviso-vazio">Sem atendimentos registrados ainda.</td></tr>';
+    }
+  }
+
+  // --- Início ---------------------------------------------------------------
+
+  if (token) {
+    mostrarPainel();
+  }
+</script>
 
 </body>
 </html>

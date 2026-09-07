@@ -44,6 +44,30 @@ class TipoMovimentacao(str, enum.Enum):
     REVERSAO = "reversao"
 
 
+class SituacaoAtendimento(str, enum.Enum):
+    ABERTO = "aberto"
+    FECHADO = "fechado"
+
+
+class FormaPagamento(str, enum.Enum):
+    """Só registro interno (o que o operador informa ao fechar a conta) — o
+    sistema não processa pagamento de verdade, ele continua acontecendo fora
+    do sistema (ver CLAUDE.md e docs/planejamento/01 - Visão do Produto.md)."""
+
+    DINHEIRO = "dinheiro"
+    CARTAO = "cartao"
+    PIX = "pix"
+    OUTRO = "outro"
+
+
+class SituacaoPedido(str, enum.Enum):
+    RECEBIDO = "recebido"
+    EM_PREPARO = "em_preparo"
+    PRONTO = "pronto"
+    ENTREGUE = "entregue"
+    CANCELADO = "cancelado"
+
+
 # ---------------------------------------------------------------------------
 # Sprint 1 — Estoque -> Cardápio
 # ---------------------------------------------------------------------------
@@ -94,12 +118,22 @@ class Movimentacao(Base):
     """
     Existe para dar histórico e rastreabilidade — nenhuma alteração de saldo
     deve acontecer sem gerar uma linha aqui.
+
+    `item_pedido_id` (Sprint 2, além do que 05 - Arquitetura e Dados.md
+    listava originalmente): fica nulo para lançamentos manuais (entrada,
+    ajuste), e preenchido quando a movimentação (consumo/reversão) foi gerada
+    pela reserva de estoque de um pedido — é assim que o cancelamento sabe
+    exatamente quais lotes e quanto devolver (regra de domínio 5: restaurar
+    só a reserva daquele pedido).
     """
 
     __tablename__ = "movimentacoes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     lote_id: Mapped[int] = mapped_column(ForeignKey("lotes_estoque.id"), nullable=False)
+    item_pedido_id: Mapped[int | None] = mapped_column(
+        ForeignKey("itens_pedido.id"), nullable=True
+    )
     tipo: Mapped[TipoMovimentacao] = mapped_column(
         Enum(TipoMovimentacao, values_callable=lambda enum_cls: [e.value for e in enum_cls]),
         nullable=False,
@@ -109,6 +143,7 @@ class Movimentacao(Base):
     data: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     lote: Mapped["LoteEstoque"] = relationship(back_populates="movimentacoes")
+    item_pedido: Mapped["ItemPedido | None"] = relationship(back_populates="movimentacoes")
 
 
 class Categoria(Base):
@@ -164,35 +199,111 @@ class FichaTecnica(Base):
 
 
 # ---------------------------------------------------------------------------
-# Sprint 2 — Pedido integrado (não implementar antes do Sprint 1 funcionar)
+# Sprint 2 — Pedido integrado (mesa, atendimento, pedido, ficha congelada)
 # ---------------------------------------------------------------------------
 
 
-class Mesa:
-    """TODO — campos: id, codigo, identificacao, ativa."""
+class Mesa(Base):
+    """codigo é o identificador visível (o que vai no QR code), ex.: '07'."""
 
     __tablename__ = "mesas"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    codigo: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
+    identificacao: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-class Pedido:
+    atendimentos: Mapped[list["Atendimento"]] = relationship(back_populates="mesa")
+
+
+class Atendimento(Base):
     """
-    TODO — campos: id, mesa_id (FK), situacao, criado_em, valor_total.
+    Sessão de ocupação de uma mesa — entidade além das 10 originais de
+    05 - Arquitetura e Dados.md (ver a atualização feita nesse arquivo).
+    Agrupa um ou mais Pedidos da mesma "sentada": abre sozinho quando o
+    primeiro pedido da mesa é criado (nenhum atendimento aberto para ela
+    naquele momento) e fecha quando o operador encerra a conta, informando
+    a forma de pagamento.
+
+    `pago`/`forma_pagamento` são só registro interno do que o operador
+    informou — o sistema não processa pagamento de verdade, isso continua
+    acontecendo fora do sistema.
+    """
+
+    __tablename__ = "atendimentos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mesa_id: Mapped[int] = mapped_column(ForeignKey("mesas.id"), nullable=False)
+    situacao: Mapped[SituacaoAtendimento] = mapped_column(
+        Enum(SituacaoAtendimento, values_callable=lambda enum_cls: [e.value for e in enum_cls]),
+        nullable=False,
+        default=SituacaoAtendimento.ABERTO,
+    )
+    aberto_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    fechado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    valor_total: Mapped[float] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=False, default=0
+    )
+    forma_pagamento: Mapped[FormaPagamento | None] = mapped_column(
+        Enum(FormaPagamento, values_callable=lambda enum_cls: [e.value for e in enum_cls]),
+        nullable=True,
+    )
+    pago: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    mesa: Mapped["Mesa"] = relationship(back_populates="atendimentos")
+    pedidos: Mapped[list["Pedido"]] = relationship(back_populates="atendimento")
+
+
+class Pedido(Base):
+    """
+    `atendimento_id` no lugar do `mesa_id` sugerido originalmente em
+    05 - Arquitetura e Dados.md — a mesa se chega via atendimento (permite
+    várias sentadas da mesma mesa ao longo do dia sem ambiguidade). Ver a
+    atualização feita nesse arquivo.
+
     Regra de domínio 4: a criação de um pedido revalida e reserva estoque em
-    uma única operação — pensar nisso no service, não só no modelo.
+    uma única operação — a lógica mora em app/services/estoque.py, chamada
+    pelo router antes de commitar o pedido.
     """
 
     __tablename__ = "pedidos"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    atendimento_id: Mapped[int] = mapped_column(ForeignKey("atendimentos.id"), nullable=False)
+    situacao: Mapped[SituacaoPedido] = mapped_column(
+        Enum(SituacaoPedido, values_callable=lambda enum_cls: [e.value for e in enum_cls]),
+        nullable=False,
+        default=SituacaoPedido.RECEBIDO,
+    )
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    valor_total: Mapped[float] = mapped_column(
+        Numeric(10, 2, asdecimal=False), nullable=False, default=0
+    )
 
-class ItemPedido:
+    atendimento: Mapped["Atendimento"] = relationship(back_populates="pedidos")
+    itens: Mapped[list["ItemPedido"]] = relationship(
+        back_populates="pedido", cascade="all, delete-orphan"
+    )
+
+
+class ItemPedido(Base):
     """
-    TODO — campos: id, pedido_id (FK), item_id (FK), quantidade,
-    preco_registrado, observacao.
     Regra de domínio 6: preco_registrado é congelado no momento do pedido —
     nunca recalculado a partir de ItemCardapio.preco depois.
     """
 
     __tablename__ = "itens_pedido"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pedido_id: Mapped[int] = mapped_column(ForeignKey("pedidos.id"), nullable=False)
+    item_id: Mapped[int] = mapped_column(ForeignKey("itens_cardapio.id"), nullable=False)
+    quantidade: Mapped[int] = mapped_column(Integer, nullable=False)
+    preco_registrado: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    observacao: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    pedido: Mapped["Pedido"] = relationship(back_populates="itens")
+    item: Mapped["ItemCardapio"] = relationship()
+    movimentacoes: Mapped[list["Movimentacao"]] = relationship(back_populates="item_pedido")
 
 
 class UsuarioInterno:

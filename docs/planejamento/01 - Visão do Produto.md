@@ -49,15 +49,38 @@ Oferecer ao cliente um cardápio atualizado e, à equipe da Vila Bela, uma visã
 - Cadastro de ingredientes e lotes.
 - Fichas técnicas dos itens.
 - Indisponibilidade automática baseada no estoque.
+- Controle de mesas: pedidos lançados por mesa, situação (livre/ocupada) e
+  há quanto tempo está ocupada.
+- Registro de pagamento por atendimento (valor e forma — dinheiro/cartão/
+  pix/outro) ao fechar a conta. Continua sendo só REGISTRO do que o
+  operador informou, não processamento de pagamento (ver "Fora do MVP").
+- Relatório simples de ocupação: quantos atendimentos e quanta receita por
+  dia da semana e por horário — para saber quando a casa mais enche e
+  quando mais fatura.
+
+> [!note] Ampliação de escopo — 2026-09-07
+> Os três itens acima (controle de mesas, registro de pagamento e
+> relatório de ocupação) entraram no MVP a pedido da equipe, depois do
+> Sprint 1 pronto. Antes disso, "pagamento integrado" e "relatórios
+> avançados" estavam listados como fora do MVP — a distinção que
+> permanece fora é o *processamento* de pagamento (gateway/maquininha) e
+> relatórios *avançados* (indicadores, previsão de demanda), não o
+> registro simples que entrou agora. Ver [[04 - Backlog e MVP]], seção
+> "Segundo incremento", para os critérios de aceitação.
 
 ## Fora do MVP
 
-- Pagamento integrado.
+- Pagamento processado pelo sistema (gateway, maquininha) — o pagamento
+  continua acontecendo fora do sistema; o que entrou no MVP foi só o
+  *registro* de valor/forma (ver acima).
 - Delivery e cálculo de entrega.
 - Emissão fiscal.
 - Programa de fidelidade.
 - Operação com várias filiais.
-- Relatórios avançados e previsão de demanda.
+- Relatórios avançados, indicadores e previsão de demanda (dashboards,
+  comparativos históricos, projeções) — o relatório simples de ocupação
+  por dia/hora entrou no MVP (ver acima); análises mais sofisticadas
+  continuam fora.
 
 ## Restrições pendentes
 

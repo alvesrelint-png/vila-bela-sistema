@@ -389,7 +389,12 @@
   }
 
   function formatarDataHora(iso) {
-    return new Date(iso).toLocaleString("pt-BR");
+    // O backend grava carimbos de data em UTC (server_default=func.now()) e
+    // devolve a string sem indicar isso ("2026-09-07T14:24:59", sem "Z") —
+    // sem o "Z", o navegador interpretaria como hora LOCAL, adiantando o
+    // horário mostrado em 3h. Forçamos a interpretação como UTC e deixamos
+    // o próprio navegador converter pro fuso de quem está vendo a tela.
+    return new Date(iso + "Z").toLocaleString("pt-BR");
   }
 
   function formatarPreco(valor) {

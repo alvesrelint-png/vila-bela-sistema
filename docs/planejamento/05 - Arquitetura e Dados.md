@@ -25,9 +25,23 @@
 | Item do cardápio | categoria, nome, descrição, preço, ativo | Representar o produto vendido |
 | Ficha técnica | item, ingrediente, quantidade necessária | Informar o consumo para preparar uma unidade |
 | Mesa | código, identificação, ativa | Vincular QR code e pedido ao atendimento |
-| Pedido | mesa, situação, datas, valor total | Controlar o ciclo do atendimento |
+| Atendimento | mesa, situação, aberto em, fechado em, valor total, forma de pagamento, pago | Agrupar os pedidos de uma sentada da mesa; controlar ocupação e fechamento da conta |
+| Pedido | atendimento, situação, criado em, valor total | Controlar o ciclo de uma comanda dentro do atendimento |
 | Item do pedido | pedido, item, quantidade, preço registrado, observação | Preservar o que foi solicitado |
 | Usuário interno | nome, acesso, situação | Proteger funções administrativas e operacionais |
+
+> [!note] Ampliação de escopo — 2026-09-07
+> `Atendimento` é uma entidade nova, além das 10 originais deste modelo —
+> entrou junto com o controle de mesas (ver [[01 - Visão do Produto]] e
+> [[04 - Backlog e MVP]], "Segundo incremento"). Ela existe porque uma
+> mesa pode receber mais de um pedido na mesma sentada (rodadas
+> diferentes) antes de fechar a conta; sem essa entidade não dá para
+> responder "desde quando essa mesa está ocupada" nem "quanto ela já
+> consumiu" olhando só para `Pedido`. Por isso `Pedido` passou a
+> referenciar `Atendimento` em vez de `Mesa` diretamente — a mesa se
+> chega através do atendimento. `Movimentação` também ganhou uma
+> referência opcional a `Item do pedido`, para o cancelamento saber
+> exatamente quais lotes e quanto devolver (regra de domínio 5).
 
 ## Regras de domínio
 
@@ -38,6 +52,11 @@
 5. O cancelamento restaura apenas a reserva associada ao pedido cancelado.
 6. O preço e a descrição relevantes ao pedido devem ser preservados mesmo que o cardápio seja alterado depois.
 7. Repetir uma solicitação após falha de conexão não pode criar o mesmo pedido duas vezes.
+8. Carimbos de data (`aberto_em`, `criado_em` etc.) são gravados em UTC no banco; o
+   relatório de ocupação (regra derivada do "Segundo incremento" em
+   [[04 - Backlog e MVP]]) converte para o fuso de Palmas (UTC-3, sem
+   horário de verão desde 2019) antes de agrupar por dia da semana/hora —
+   senão um pedido das 23h de sexta apareceria como sábado no relatório.
 
 ## Critérios para escolha da stack
 
@@ -55,7 +74,7 @@
 | Decisão | Estado | Justificativa |
 |---|---|---|
 | Aplicação web responsiva | Provisória | Compatível com acesso por QR code e múltiplos dispositivos |
-| Pagamento fora do sistema | Aprovada para o MVP | Reduz escopo e riscos de integração |
+| Pagamento fora do sistema | Aprovada para o MVP | Reduz escopo e riscos de integração — o sistema passou a REGISTRAR valor e forma de pagamento por atendimento (2026-09-07), mas não processa pagamento nenhum |
 | Estoque por lotes | Provisória | A validade pertence a cada entrada, não somente ao ingrediente |
 | Reserva de estoque no pedido | Provisória | Evita aceitar pedidos concorrentes sem insumos |
 | Stack tecnológica | Recomendada (ver abaixo) | Ligada aos critérios já definidos; pendente de ratificação pela equipe |
