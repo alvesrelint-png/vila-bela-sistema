@@ -1,0 +1,13 @@
+/* Tema visual — só variáveis de cor e fonte, nada de layout aqui.
+   TODO: definir a paleta e tipografia da Vila Bela (nenhuma decisão de marca
+   foi tomada ainda no vault — perguntar ao cliente/representante). Manter a
+   convenção de outros projetos da casa: este arquivo só declara custom
+   properties (--cor-fundo, --cor-destaque, --font-display, --font-body...),
+   e cada página consome essas variáveis no próprio <style>. */
+
+:root {
+  /* --cor-fundo: ...; */
+  /* --cor-destaque: ...; */
+  /* --font-display: ...; */
+  /* --font-body: ...; */
+}

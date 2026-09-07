@@ -1,0 +1,20 @@
+# Dependências mínimas para o Sprint 1 (Estoque -> Cardápio).
+# Ajuste versões antes de instalar; estas são só um ponto de partida.
+#
+# SQLite (ambiente local padrão) já vem embutido no Python — não precisa de
+# driver extra. psycopg2-binary só entra quando a equipe migrar para
+# PostgreSQL/Supabase na hora de publicar (ver CLAUDE.md > Stack).
+
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+python-dotenv
+
+# Dependência de desenvolvimento (para rodar backend/tests/):
+pytest
+
+# Descomentar só na hora de migrar para PostgreSQL/Supabase (publicação):
+# psycopg2-binary
+# supabase
+# python-jose[cryptography]
