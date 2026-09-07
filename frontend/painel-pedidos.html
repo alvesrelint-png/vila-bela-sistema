@@ -14,6 +14,14 @@
     font-family: var(--font-body);
   }
 
+  /* Bug corrigido (mesmo do painel-estoque.html): `.tela-login{display:flex}`
+     tinha a mesma especificidade do `[hidden]` do navegador, e regra de
+     folha de estilo do autor sempre vence a do navegador mesmo empatando
+     em especificidade — então `tela-login.hidden = true` não escondia de
+     verdade a tela de login depois do login, empurrando o painel pra baixo
+     do fold. Este reset garante que [hidden] sempre vence. */
+  [hidden] { display: none !important; }
+
   /* --- Tela de login (igual ao painel de estoque; mesmo token/localStorage) */
   .tela-login {
     min-height: 100vh;
@@ -132,8 +140,70 @@
   }
   td button:disabled { opacity: 0.4; cursor: default; }
 
-  .situacao-livre { color: var(--cor-disponivel); font-weight: 600; }
-  .situacao-ocupada { color: var(--cor-alerta); font-weight: 600; }
+  /* --- Grid de mesas (quadrados coloridos por status) --- */
+  .legenda-mesas {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: var(--cor-texto-suave);
+    margin-bottom: 12px;
+  }
+  .legenda-mesas .bolinha {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .bolinha.livre { background: var(--cor-disponivel); }
+  .bolinha.ocupada { background: var(--cor-alerta); }
+
+  .grade-mesas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .mesa-tile {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: var(--raio);
+    border: 2px solid transparent;
+    box-shadow: var(--sombra);
+    cursor: pointer;
+    padding: 8px;
+    text-align: center;
+    transition: transform 0.1s ease;
+  }
+  .mesa-tile:hover { transform: scale(1.04); }
+  .mesa-tile.selecionada { border-color: var(--cor-destaque); }
+  .mesa-tile.livre { background: var(--cor-disponivel-fundo); }
+  .mesa-tile.ocupada { background: var(--cor-alerta-fundo); }
+  .mesa-tile .numero {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .mesa-tile.livre .numero { color: var(--cor-disponivel); }
+  .mesa-tile.ocupada .numero { color: var(--cor-alerta); }
+  .mesa-tile .situacao-tile {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .mesa-tile.livre .situacao-tile { color: var(--cor-disponivel); }
+  .mesa-tile.ocupada .situacao-tile { color: var(--cor-alerta); }
+  .mesa-tile .detalhe-tile {
+    font-size: 0.7rem;
+    color: var(--cor-texto-suave);
+  }
 
   /* --- Fila (Kanban) --- */
   .kanban {
@@ -232,13 +302,21 @@
 
     <!-- ============================ Mesas ============================ -->
     <section id="aba-mesas" hidden>
-      <div class="cartao" style="margin-bottom: 16px;">
-        <table>
-          <thead>
-            <tr><th>Mesa</th><th>Situação</th><th>Aberta há</th><th>Consumido</th><th></th></tr>
-          </thead>
-          <tbody id="tabela-mesas"></tbody>
-        </table>
+      <div class="legenda-mesas">
+        <span><i class="bolinha livre"></i> Livre</span>
+        <span><i class="bolinha ocupada"></i> Ocupada</span>
+      </div>
+
+      <div class="grade-mesas" id="grade-mesas"></div>
+
+      <div class="cartao" id="painel-detalhe-mesa" hidden style="margin-bottom: 16px;">
+        <h2>Mesa <span id="detalhe-mesa-codigo"></span></h2>
+        <p id="detalhe-mesa-info" class="aviso-vazio"></p>
+        <div class="form-inline">
+          <button type="button" id="botao-abrir-novo-pedido">Lançar pedido</button>
+          <button type="button" id="botao-abrir-fechar-conta">Fechar conta</button>
+          <button type="button" class="secundario" id="botao-fechar-detalhe-mesa">Fechar</button>
+        </div>
       </div>
 
       <div class="cartao" id="painel-novo-pedido" hidden>
@@ -313,6 +391,7 @@
   let rascunhoNovoPedido = []; // [{item_id, nome, quantidade, observacao}]
   let mesaEmLancamento = null; // codigo da mesa
   let mesaFechandoConta = null; // { codigo, atendimentoId }
+  let mesaDetalheSelecionada = null; // mesa (objeto vindo de /mesas) com o quadrado clicado
 
   const ROTULO_SITUACAO_PEDIDO = {
     recebido: "Recebido",
@@ -531,28 +610,68 @@
 
   async function carregarMesas() {
     mesas = await apiFetch("/mesas");
-    const corpo = document.getElementById("tabela-mesas");
-    corpo.innerHTML = "";
+    const grade = document.getElementById("grade-mesas");
+    grade.innerHTML = "";
     for (const mesa of mesas) {
-      const tr = document.createElement("tr");
       const ocupada = mesa.situacao === "ocupada";
-      tr.innerHTML = `
-        <td>${escapeHtml(mesa.codigo)}</td>
-        <td class="${ocupada ? "situacao-ocupada" : "situacao-livre"}">${ocupada ? "Ocupada" : "Livre"}</td>
-        <td>${ocupada ? `${mesa.minutos_aberta} min` : "—"}</td>
-        <td>${ocupada ? formatarPreco(mesa.valor_total) : "—"}</td>
-        <td>
-          <button data-acao="lancar">Lançar pedido</button>
-          <button data-acao="fechar" ${ocupada ? "" : "disabled"}>Fechar conta</button>
-        </td>
+      const tile = document.createElement("div");
+      tile.className = `mesa-tile ${ocupada ? "ocupada" : "livre"}`;
+      tile.innerHTML = `
+        <div class="numero">${escapeHtml(mesa.codigo)}</div>
+        <div class="situacao-tile">${ocupada ? "Ocupada" : "Livre"}</div>
+        ${ocupada ? `<div class="detalhe-tile">${mesa.minutos_aberta} min · ${formatarPreco(mesa.valor_total)}</div>` : ""}
       `;
-      aoClicar(tr.querySelector('[data-acao="lancar"]'), async () => abrirNovoPedido(mesa.codigo));
-      aoClicar(tr.querySelector('[data-acao="fechar"]'), async () =>
-        abrirFecharConta(mesa.codigo, mesa.atendimento_id)
-      );
-      corpo.appendChild(tr);
+      tile.addEventListener("click", () => selecionarMesa(mesa));
+      grade.appendChild(tile);
+    }
+
+    // se uma mesa já estava com o detalhe aberto, atualiza com os dados
+    // novos (ex.: minutos_aberta mudou) e reaplica o destaque visual
+    if (mesaDetalheSelecionada) {
+      const atualizada = mesas.find((m) => m.codigo === mesaDetalheSelecionada.codigo);
+      if (atualizada) {
+        mostrarDetalheMesa(atualizada);
+      } else {
+        document.getElementById("painel-detalhe-mesa").hidden = true;
+        mesaDetalheSelecionada = null;
+      }
     }
   }
+
+  function selecionarMesa(mesa) {
+    document.getElementById("painel-novo-pedido").hidden = true;
+    document.getElementById("painel-fechar-conta").hidden = true;
+    mostrarDetalheMesa(mesa);
+  }
+
+  function mostrarDetalheMesa(mesa) {
+    mesaDetalheSelecionada = mesa;
+    const ocupada = mesa.situacao === "ocupada";
+
+    document.getElementById("detalhe-mesa-codigo").textContent = mesa.codigo;
+    document.getElementById("detalhe-mesa-info").textContent = ocupada
+      ? `Ocupada há ${mesa.minutos_aberta} min — consumido ${formatarPreco(mesa.valor_total)}`
+      : "Livre — sem atendimento em aberto.";
+    document.getElementById("botao-abrir-fechar-conta").disabled = !ocupada;
+    document.getElementById("painel-detalhe-mesa").hidden = false;
+
+    const grade = document.getElementById("grade-mesas");
+    [...grade.children].forEach((tile, indice) => {
+      tile.classList.toggle("selecionada", mesas[indice] && mesas[indice].codigo === mesa.codigo);
+    });
+  }
+
+  document.getElementById("botao-abrir-novo-pedido").addEventListener("click", () => {
+    abrirNovoPedido(mesaDetalheSelecionada.codigo);
+  });
+  document.getElementById("botao-abrir-fechar-conta").addEventListener("click", () => {
+    abrirFecharConta(mesaDetalheSelecionada.codigo, mesaDetalheSelecionada.atendimento_id);
+  });
+  document.getElementById("botao-fechar-detalhe-mesa").addEventListener("click", () => {
+    document.getElementById("painel-detalhe-mesa").hidden = true;
+    document.querySelectorAll(".mesa-tile.selecionada").forEach((el) => el.classList.remove("selecionada"));
+    mesaDetalheSelecionada = null;
+  });
 
   // --- Novo pedido (lançado pelo operador) ------------------------------------
 
@@ -560,6 +679,7 @@
     mesaEmLancamento = codigo;
     rascunhoNovoPedido = [];
     document.getElementById("mesa-novo-pedido").textContent = codigo;
+    document.getElementById("painel-detalhe-mesa").hidden = true;
     document.getElementById("painel-fechar-conta").hidden = true;
     document.getElementById("painel-novo-pedido").hidden = false;
     renderizarRascunhoPedido();
@@ -637,6 +757,7 @@
   function abrirFecharConta(codigo, atendimentoId) {
     mesaFechandoConta = { codigo, atendimentoId };
     document.getElementById("mesa-fechar-conta").textContent = codigo;
+    document.getElementById("painel-detalhe-mesa").hidden = true;
     document.getElementById("painel-novo-pedido").hidden = true;
     document.getElementById("painel-fechar-conta").hidden = false;
   }

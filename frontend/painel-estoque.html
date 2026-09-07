@@ -14,6 +14,17 @@
     font-family: var(--font-body);
   }
 
+  /* Bug corrigido: seletores de classe como `.tela-login{display:flex}` ou
+     `.colunas{display:grid}` têm a mesma especificidade do `[hidden]` do
+     navegador — e regra de folha de estilo do autor sempre vence a do
+     navegador, mesmo empatando em especificidade. Resultado: `elemento.hidden
+     = true` não escondia de verdade quem também tivesse uma dessas classes
+     (ex.: a tela de login continuava ocupando a tela toda depois do login,
+     empurrando o painel pra baixo do fold). Este reset garante que [hidden]
+     sempre vence, não importa que outra classe o elemento tenha.
+     Alternar visibilidade sempre via `elemento.hidden`, nunca `style.display`. */
+  [hidden] { display: none !important; }
+
   /* --- Tela de login --------------------------------------------------- */
   .tela-login {
     min-height: 100vh;
